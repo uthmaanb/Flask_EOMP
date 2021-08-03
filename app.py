@@ -1,28 +1,22 @@
 import hmac
 import sqlite3
-import datetime
 
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
 from flask_jwt import JWT, jwt_required, current_identity
 from flask_cors import CORS
 
 
+# create class as part of flask requirements
 class User(object):
     def __init__(self, user_id, username, password):
         self.id = user_id
-        self.username = username
+        self.usern ame = username
         self.password = password
 
 
-# class Product(object):
-#     def __init__(self, prod_id, name, prod_type):
-#         self.id = prod_id
-#         self.name = name
-#         self.type = prod_type
-
-
+# create tables in sqlite
 def users_table():
-    conn = sqlite3.connect('shop.db')
+    conn = sqlite3.connect('shoppy.db')
     print("Opened Database Successfully")
 
     conn.execute("CREATE TABLE IF NOT EXISTS users(user_id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -37,7 +31,7 @@ def users_table():
 
 
 def fetch_users():
-    with sqlite3.connect('shop.db') as conn:
+    with sqlite3.connect('shoppy.db') as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users")
         user = cursor.fetchall()
@@ -50,44 +44,26 @@ def fetch_users():
 
 
 def prod_table():
-    conn = sqlite3.connect('shop.db')
+    conn = sqlite3.connect('shoppy.db')
     print("Opened Database Successfully")
 
     conn.execute("CREATE TABLE IF NOT EXISTS products(prod_id INTEGER PRIMARY KEY AUTOINCREMENT, "
                  "name TEXT NOT NULL,"
                  "price TEXT NOT NULL,"
                  "description TEXT NOT NULL,"
-                 "prod_type TEXT"
+                 "prod_type TEXT NOT NULL,"
                  "quantity TEXT NOT NULL)")
     print("product table created successfully")
     conn.close()
 
 
-# def fetch_prod():
-#     with sqlite3.connect("shop.db") as conn:
-#         cursor = conn.cursor()
-#         cursor.execute("SELECT * FROM products")
-#         items = cursor.fetchall()
-#
-#         new_item = []
-#
-#         for data in items:
-#             print(data)
-#             new_item.append(Product(data[0], data[1], data[4]))
-#         return new_item
-
-
 users_table()
-# prod_table()
+prod_table()
 users = fetch_users()
-# products = fetch_prod()
 
 
 user_table = {u.username: u for u in users}
 userid_table = {u.id: u for u in users}
-
-# prod_table = {p.name: p for p in products}
-# productid_table = {p.id: p for p in products}
 
 
 def authenticate(username, password):
@@ -128,7 +104,7 @@ def user_registration():
         password = request.form['password']
         address = request.form['address']
 
-        with sqlite3.connect('shop.db') as conn:
+        with sqlite3.connect('shoppy.db') as conn:
             cursor = conn.cursor()
             cursor.execute("INSERT INTO users("
                            "username,"
@@ -153,18 +129,17 @@ def prod_registration():
         name = request.form['name']
         price = request.form['price']
         description = request.form['description']
-        prod_type = request.form['prod']
-        quantity = request.form['username']
+        prod_type = request.form['prod_type']
+        quantity = request.form['quantity']
 
-        with sqlite3.connect('shop.db') as conn:
+        with sqlite3.connect('shoppy.db') as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO users("
-                           "username,"
-                           "first_name,"
-                           "last_name,"
-                           "email,"
-                           "password,"
-                           "address) VALUES(?, ?, ?, ?, ?, ?)",
+            cursor.execute("INSERT INTO products("
+                           "name,"
+                           "price,"
+                           "description,"
+                           "prod_type,"
+                           "quantity) VALUES(?, ?, ?, ?, ?)",
                            (name, price, description, prod_type, quantity))
             conn.commit()
             response["message"] = "success"
@@ -176,7 +151,7 @@ def prod_registration():
 def show_products():
     response = {}
 
-    with sqlite3.connect("shop.db") as conn:
+    with sqlite3.connect("shoppy.db") as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM products")
 
@@ -184,6 +159,48 @@ def show_products():
         response["description"] = "Displaying all products successfully"
         response["data"] = cursor.fetchall()
     return jsonify(response)
+
+
+@app.route('/delete-products/<int:prod_id>')
+def delete_products(prod_id):
+    response = {}
+    with sqlite3.connect("shoppy.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM products WHERE prod_id=" + str(prod_id))
+        conn.commit()
+        response['status_code'] = 200
+        response['message'] = "Product successfully deleted"
+
+    return response
+
+
+@app.route('/edit-prod/<int:prod_id>', methods=["PUT"])
+def edit_products(prod_id):
+    response = {}
+    if request.method == "PUT":
+        with sqlite3.connect("shoppy.db") as conn:
+            incoming_data = dict(request.json)
+            put_data = {}
+
+            if incoming_data.get("price") is not None:
+                put_data["price"] = incoming_data.get("price")
+                with sqlite3.connect("shoppy.db") as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE products SET price=? WHERE prod_id=?", (put_data["price"], prod_id))
+                    conn.commit()
+                    response['message'] = "Update was successful"
+                    response['status_code'] = 200
+                return response
+
+            if incoming_data.get("quantity") is not None:
+                put_data["quantity"] = incoming_data.get("quantity")
+                with sqlite3.connect("shoppy.db") as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE products SET quantity=? WHERE prod_id=?", (put_data["quantity"], prod_id))
+                    conn.commit()
+                    response['message'] = "Update was successful"
+                    response['status_code'] = 200
+                return response
 
 
 if __name__ == '__main__':
