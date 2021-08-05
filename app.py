@@ -4,35 +4,49 @@ import sqlite3
 from flask import Flask, request, jsonify
 from flask_jwt import JWT, jwt_required, current_identity
 from flask_cors import CORS
+from flask_mail import Mail, Message
 
 
 # create class as part of flask requirements
 class User(object):
     def __init__(self, user_id, username, password):
         self.id = user_id
-        self.usern ame = username
+        self.username = username
         self.password = password
 
 
 # create tables in sqlite
-def users_table():
-    conn = sqlite3.connect('shoppy.db')
-    print("Opened Database Successfully")
+class CreateTable:
 
-    conn.execute("CREATE TABLE IF NOT EXISTS users(user_id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                 "username TEXT NOT NULL, "
-                 "first_name TEXT NOT NULL,"
-                 "last_name TEXT NOT NULL,"
-                 "email TEXT NOT NULL,"
-                 "password TEXT NOT NULL,"
-                 "address TEXT NOT NULL)")
-    print("users table created successfully")
-    conn.close()
+    def __init__(self):
+        self.conn = sqlite3.connect('shoprite.db')
+        self.cursor = self.conn.cursor()
+        self.conn.execute("CREATE TABLE IF NOT EXISTS users(user_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                          "username TEXT NOT NULL, "
+                          "first_name TEXT NOT NULL,"
+                          "last_name TEXT NOT NULL,"
+                          "email TEXT NOT NULL,"
+                          "password TEXT NOT NULL,"
+                          "address TEXT NOT NULL)")
+        print("users table created successfully")
+
+        self.conn.execute("CREATE TABLE IF NOT EXISTS products(prod_id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                          "name TEXT NOT NULL,"
+                          "price TEXT NOT NULL,"
+                          "description TEXT NOT NULL,"
+                          "prod_type TEXT NOT NULL,"
+                          "quantity TEXT NOT NULL)")
+        print("product table created successfully")
+        self.conn.close()
+
+
+CreateTable()
 
 
 def fetch_users():
-    with sqlite3.connect('shoppy.db') as conn:
-        cursor = conn.cursor()
+    conn = sqlite3.connect('shoprite.db')
+    cursor = conn.cursor()
+    with sqlite3.connect('shoprite.db') as conn:
         cursor.execute("SELECT * FROM users")
         user = cursor.fetchall()
 
@@ -43,22 +57,6 @@ def fetch_users():
     return new_data
 
 
-def prod_table():
-    conn = sqlite3.connect('shoppy.db')
-    print("Opened Database Successfully")
-
-    conn.execute("CREATE TABLE IF NOT EXISTS products(prod_id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                 "name TEXT NOT NULL,"
-                 "price TEXT NOT NULL,"
-                 "description TEXT NOT NULL,"
-                 "prod_type TEXT NOT NULL,"
-                 "quantity TEXT NOT NULL)")
-    print("product table created successfully")
-    conn.close()
-
-
-users_table()
-prod_table()
 users = fetch_users()
 
 
@@ -66,10 +64,10 @@ user_table = {u.username: u for u in users}
 userid_table = {u.id: u for u in users}
 
 
-def authenticate(username, password):
-    user = user_table.get(username, None)
-    if user and hmac.compare_digest(user.password.encode('utf-8'), password.encode('utf-8')):
-        return user
+def authenticate(self, username, password):
+    self.user = user_table.get(username, None)
+    if self.user and hmac.compare_digest(self.user.password.encode('utf-8'), password.encode('utf-8')):
+        return self.user
 
 
 def identity(payload):
@@ -81,6 +79,15 @@ app = Flask(__name__)
 CORS(app)
 app.debug = True
 app.config['SECRET_KEY'] = 'super-secret'
+
+# email tings
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USERNAME'] = 'cody01101101@gmail.com'
+app.config['MAIL_PASSWORD'] = 'Polonykop100'
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
+mail = Mail(app)
 
 jwt = JWT(app, authenticate, identity)
 
@@ -104,7 +111,7 @@ def user_registration():
         password = request.form['password']
         address = request.form['address']
 
-        with sqlite3.connect('shoppy.db') as conn:
+        with sqlite3.connect('shoprite.db') as conn:
             cursor = conn.cursor()
             cursor.execute("INSERT INTO users("
                            "username,"
@@ -117,6 +124,10 @@ def user_registration():
             conn.commit()
             response["message"] = "success"
             response["status_code"] = 201
+
+            msg = Message('Yo Bro', sender='cody01101101@gmail.com', recipients=[email])
+            msg.body = "Welcome " + first_name + ". You have Successfully registered."
+            mail.send(msg)
         return response
 
 
@@ -132,7 +143,7 @@ def prod_registration():
         prod_type = request.form['prod_type']
         quantity = request.form['quantity']
 
-        with sqlite3.connect('shoppy.db') as conn:
+        with sqlite3.connect('shoprite.db') as conn:
             cursor = conn.cursor()
             cursor.execute("INSERT INTO products("
                            "name,"
@@ -151,7 +162,7 @@ def prod_registration():
 def show_products():
     response = {}
 
-    with sqlite3.connect("shoppy.db") as conn:
+    with sqlite3.connect("shoprite.db") as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM products")
 
@@ -164,7 +175,7 @@ def show_products():
 @app.route('/delete-products/<int:prod_id>')
 def delete_products(prod_id):
     response = {}
-    with sqlite3.connect("shoppy.db") as conn:
+    with sqlite3.connect("shoprite.db") as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM products WHERE prod_id=" + str(prod_id))
         conn.commit()
@@ -178,13 +189,13 @@ def delete_products(prod_id):
 def edit_products(prod_id):
     response = {}
     if request.method == "PUT":
-        with sqlite3.connect("shoppy.db") as conn:
+        with sqlite3.connect("shoprite.db") as conn:
             incoming_data = dict(request.json)
             put_data = {}
 
             if incoming_data.get("price") is not None:
                 put_data["price"] = incoming_data.get("price")
-                with sqlite3.connect("shoppy.db") as conn:
+                with sqlite3.connect("shoprite.db") as conn:
                     cursor = conn.cursor()
                     cursor.execute("UPDATE products SET price=? WHERE prod_id=?", (put_data["price"], prod_id))
                     conn.commit()
@@ -194,7 +205,7 @@ def edit_products(prod_id):
 
             if incoming_data.get("quantity") is not None:
                 put_data["quantity"] = incoming_data.get("quantity")
-                with sqlite3.connect("shoppy.db") as conn:
+                with sqlite3.connect("shoprite.db") as conn:
                     cursor = conn.cursor()
                     cursor.execute("UPDATE products SET quantity=? WHERE prod_id=?", (put_data["quantity"], prod_id))
                     conn.commit()
