@@ -103,42 +103,32 @@ def protected():
 def user_registration():
     response = {}
 
-    try:
-        if request.method == "POST":
+    if request.method == "POST":
 
-            username = request.form['username']
-            first_name = request.form['first_name']
-            last_name = request.form['last_name']
-            email = request.form['email']
-            password = request.form['password']
-            address = request.form['address']
+        username = request.form['username']
+        first_name = request.form['first_name']
+        last_name = request.form['last_name']
+        email = request.form['email']
+        password = request.form['password']
+        address = request.form['address']
 
-            with sqlite3.connect('shoprite.db') as conn:
-                cursor = conn.cursor()
-                cursor.execute("INSERT INTO users("
-                               "username,"
-                               "first_name,"
-                               "last_name,"
-                               "email,"
-                               "password,"
-                               "address) VALUES(?, ?, ?, ?, ?, ?)",
-                               (username, first_name, last_name, email, password, address))
-                conn.commit()
-                response["message"] = "success"
-                response["status_code"] = 201
+        with sqlite3.connect('shoprite.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO users("
+                           "username,"
+                           "first_name,"
+                           "last_name,"
+                           "email,"
+                           "password,"
+                           "address) VALUES(?, ?, ?, ?, ?, ?)",
+                           (username, first_name, last_name, email, password, address))
+            conn.commit()
+            response["message"] = "success"
+            response["status_code"] = 201
 
-                msg = Message('Yo Bro', sender='cody01101101@gmail.com', recipients=[email])
-                msg.body = "Welcome " + first_name + ". You have Successfully registered."
-                mail.send(msg)
-            return response
-
-    except SMTPRecipientsRefused:
-        response["message"] = "Invalid email used"
-        response["status_code"] = 400
-        return response
-    except SMTPAuthenticationError:
-        response["message"] = "Invalid! Use proper username and password"
-        response["status_code"] = 400
+            msg = Message('Yo Bro', sender='cody01101101@gmail.com', recipients=[email])
+            msg.body = "Welcome " + first_name + ". You have Successfully registered."
+            mail.send(msg)
         return response
 
 
