@@ -1,5 +1,6 @@
 import hmac
 import sqlite3
+from smtplib import SMTPRecipientsRefused, SMTPAuthenticationError
 
 from flask import Flask, request, jsonify
 from flask_jwt import JWT, jwt_required, current_identity
@@ -102,32 +103,42 @@ def protected():
 def user_registration():
     response = {}
 
-    if request.method == "POST":
+    try:
+        if request.method == "POST":
 
-        username = request.form['username']
-        first_name = request.form['first_name']
-        last_name = request.form['last_name']
-        email = request.form['email']
-        password = request.form['password']
-        address = request.form['address']
+            username = request.form['username']
+            first_name = request.form['first_name']
+            last_name = request.form['last_name']
+            email = request.form['email']
+            password = request.form['password']
+            address = request.form['address']
 
-        with sqlite3.connect('shoprite.db') as conn:
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO users("
-                           "username,"
-                           "first_name,"
-                           "last_name,"
-                           "email,"
-                           "password,"
-                           "address) VALUES(?, ?, ?, ?, ?, ?)",
-                           (username, first_name, last_name, email, password, address))
-            conn.commit()
-            response["message"] = "success"
-            response["status_code"] = 201
+            with sqlite3.connect('shoprite.db') as conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO users("
+                               "username,"
+                               "first_name,"
+                               "last_name,"
+                               "email,"
+                               "password,"
+                               "address) VALUES(?, ?, ?, ?, ?, ?)",
+                               (username, first_name, last_name, email, password, address))
+                conn.commit()
+                response["message"] = "success"
+                response["status_code"] = 201
 
-            msg = Message('Yo Bro', sender='cody01101101@gmail.com', recipients=[email])
-            msg.body = "Welcome " + first_name + ". You have Successfully registered."
-            mail.send(msg)
+                msg = Message('Yo Bro', sender='cody01101101@gmail.com', recipients=[email])
+                msg.body = "Welcome " + first_name + ". You have Successfully registered."
+                mail.send(msg)
+            return response
+
+    except SMTPRecipientsRefused:
+        response["message"] = "Invalid email used"
+        response["status_code"] = 400
+        return response
+    except SMTPAuthenticationError:
+        response["message"] = "Invalid! Use proper username and password"
+        response["status_code"] = 400
         return response
 
 
@@ -135,27 +146,33 @@ def user_registration():
 def prod_registration():
     response = {}
 
-    if request.method == "POST":
+    try:
+        if request.method == "POST":
 
-        name = request.form['name']
-        price = request.form['price']
-        description = request.form['description']
-        prod_type = request.form['prod_type']
-        quantity = request.form['quantity']
+            name = request.form['name']
+            price = request.form['price']
+            description = request.form['description']
+            prod_type = request.form['prod_type']
+            quantity = request.form['quantity']
 
-        with sqlite3.connect('shoprite.db') as conn:
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO products("
-                           "name,"
-                           "price,"
-                           "description,"
-                           "prod_type,"
-                           "quantity) VALUES(?, ?, ?, ?, ?)",
-                           (name, price, description, prod_type, quantity))
-            conn.commit()
-            response["message"] = "success"
-            response["status_code"] = 201
-        return response
+            with sqlite3.connect('shoprite.db') as conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO products("
+                               "name,"
+                               "price,"
+                               "description,"
+                               "prod_type,"
+                               "quantity) VALUES(?, ?, ?, ?, ?)",
+                               (name, price, description, prod_type, quantity))
+                conn.commit()
+                response["message"] = "success"
+                response["status_code"] = 201
+            return response
+
+    except ConnectionError as e:
+        return e
+    except Exception as e:
+        return e
 
 
 @app.route('/show-products/')
