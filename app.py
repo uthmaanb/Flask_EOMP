@@ -158,7 +158,7 @@ def prod_registration():
         return response
 
 
-@app.route('/show-products')
+@app.route('/show-products/')
 def show_products():
     response = {}
 
